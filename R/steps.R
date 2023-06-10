@@ -21,7 +21,19 @@
 # steps of OCR
 
 
-#' @describeIn step3_split_videos Read the ini-file
+#' Steps for OCR balance movies
+#'
+#' Steps for OCR balance movies
+#' @param INI  ini-structure
+#' @param exp  name of one experiment. 
+#'             If NULL then the main section with all expereiments is returned. 
+#'             If not NULL, the subsection of that experiment is returned.
+#' @name steps
+NULL
+#
+
+
+#' @describeIn steps Read the ini-file
 #' @export
 step1_initialise <- function(inifile="ocr.ini") {
 
@@ -32,7 +44,7 @@ step1_initialise <- function(inifile="ocr.ini") {
 }
 
 
-#' @describeIn step3_split_videos Get a list of available experiments
+#' @describeIn steps Get a list of available experiments
 #' @export
 step2_list_of_experiments <- function(INI,exps=NULL) {
 
@@ -43,13 +55,7 @@ step2_list_of_experiments <- function(INI,exps=NULL) {
 }
 
 
-#' Split video's
-#'
-#' Split video's
-#' @param INI  ini-structure
-#' @param exp  name of one experiment. 
-#'             If NULL then the main section with all expereiments is returned. 
-#'             If not NULL, the subsection of that experiment is returned.
+#' @describeIn steps Split video's
 #' @export
 step3_split_videos <- function(INI,exps) {
 
@@ -86,7 +92,7 @@ step3_split_videos <- function(INI,exps) {
    return(invisible(files))
 }
 
-#' @describeIn step3_split_videos Define the clip area of a movie
+#' @describeIn steps Define the clip area of a movie
 #' @export
 step4a_define_clip_area <- function(INI,exps,replace=FALSE) {
 
@@ -123,7 +129,7 @@ step4a_define_clip_area <- function(INI,exps,replace=FALSE) {
    return(invisible(NULL))
 }
 
-#' @describeIn step3_split_videos Define the tilt line of a movie
+#' @describeIn steps Define the tilt line of a movie
 #' @export
 step4b_define_tilt_line <- function(INI,exps,replace=FALSE) {
 
@@ -165,9 +171,13 @@ step4b_define_tilt_line <- function(INI,exps,replace=FALSE) {
 #'             If character, the name of a set in `ocr_settings` of the INI file.
 #'             If a list, settings containing a value for `step`, `smooth`,
 #'             and, optionally, `cycle`.
-#' @describeIn step3_split_videos OCR the images and save the result as a CSV-file
+#' @param draw logical; draw the images during processing
+#' @param frames integers; Frame numbers to be processed, ignored if NULL. 
+#'                         The frame numbers are stored as `nr` in the result table.
+#'                         This selection is overrides the other selection options.
+#' @describeIn steps OCR the images and save the result as a CSV-file
 #' @export
-step5_ocr_images <- function(INI,exps,set=list(step=3,smooth=0,cycle=1),draw=FALSE) {
+step5_ocr_images <- function(INI,exps,set=list(step=3,smooth=0,cycle=1),draw=FALSE,frames=NULL) {
 
    # get exp names which realy exist
    exps = get_list_of_experiments(INI,exps)
@@ -209,8 +219,9 @@ step5_ocr_images <- function(INI,exps,set=list(step=3,smooth=0,cycle=1),draw=FAL
 
       # OCR
       framerate = av::av_media_info(video)$video$framerate
-      res = img_ocr_list(res,csvfile,clip=clip,step=step,draw=draw,
+      res = img_ocr_list(res,csvfile,clip=clip,tilt=tilt,step=step,draw=draw,
                          smooth=smooth,minconfidence=minconfidence,
+                         frames=frames,
                          cycle=cycle,framerate=framerate)
 
    }
@@ -221,7 +232,7 @@ step5_ocr_images <- function(INI,exps,set=list(step=3,smooth=0,cycle=1),draw=FAL
 
 # plot
 
-#' @describeIn step3_split_videos Create a plot of the OCR results
+#' @describeIn steps Create a plot of the OCR results
 #' @export
 step6_plot_result <- function(INI,exps=NULL,plts=NULL) {
 

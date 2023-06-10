@@ -2053,4 +2053,220 @@ cfn_check_file <- function(name,path,check=FALSE) {
    return(filename)
 } 
 
+# ----- cfnDev -----
+
+
+#' Create a graph output-file name
+#'
+#' Create a graph output-file name
+#' @param  outname   base-name of output file, the extension depends on the type
+#' @param  type      file type
+#' @param  outdir    directory name of file
+#' @export
+cfnDevName <- function(outname,type,outdir=NULL) {
+
+   # init
+   plotDevs = c("pdf","eps","jpeg","jpg","png","tiff")
+   plotExts = c("pdf","eps","jpg" ,"jpg","png","tiff")
+   if(is.null(outdir)){outdir="."}
+
+   # ext
+   i = match(tolower(type),plotDevs)
+   if(! is.na(i)) {
+      ext = plotExts[i]
+   } else {
+      ext = NA
+   }
+
+   # outname
+   if(! is.na(ext)) {
+      outfile = paste0(outdir,"/",outname,".",ext)
+   } else {
+      outfile = NA
+   }
+
+   # return
+   return(outfile)
+}
+
+#' Get Size of Device
+#'
+#' Get dimensions of a device. This may be specified by a name, e.g. papersize A4.
+#' @param  width   numeric or character; if numeric the width the device, if character the name of a size definition. The name is case insensative.
+#' @param  height  numeric; height of the device, ignored if \code{width} defines a predefined size.
+#' @details If \code{width} is the name of a predefined device size then that size is returend for \code{width} and \code{height}, otherwise the entered values are returned.
+#'          The device names are case insensitive. Currently defined names are the papersizes A0-A6 and WS (widescreen). 
+#'          To each name a letter for portrait (P) or landscape (L) may be added. The papersizes have portrait dimensions by default and the WS landscape. 
+#'          The units of the sizes are \code{cm}.
+#' @noRd
+cfnDevSize <- function(width=10,height=10) {
+   # paper size
+   paperSize = list(A6=list(size=c( 7.4, 10.5),portrait=c("a6","a6p"),landscape=c("a6l")),
+                    A5=list(size=c(14.9, 21.0),portrait=c("a5","a5p"),landscape=c("a5l")),
+                    A4=list(size=c(21.0, 29.7),portrait=c("a4","a4p"),landscape=c("a4l")),
+                    A3=list(size=c(29.7, 42.0),portrait=c("a3","a3p"),landscape=c("a3l")),
+                    A2=list(size=c(42.0, 59.5),portrait=c("a2","a2p"),landscape=c("a2l")),
+                    A1=list(size=c(59.5, 84.1),portrait=c("a1","a1p"),landscape=c("a1l")),
+                    A0=list(size=c(84.1,118.9),portrait=c("a0","a0p"),landscape=c("a0l")),
+                    WS=list(size=c(29.7, 50.0),portrait=c("wsp")     ,landscape=c("ws","wsl"))    # Wide Screen
+                   )
+   size   = c(width,height)    # default size
+   lwidth = tolower(width)
+   for(ps in paperSize)
+     {if(lwidth %in% ps$portrait ){size=ps$size     }
+      if(lwidth %in% ps$landscape){size=ps$size[2:1]}
+     }
+   width = size[1]
+   height= size[2]
+   # return
+   return(list(width=width,height=height))
+}
+
+#' Open graphics device
+#'
+#' Open graphics device
+#' @param width   paper width  (cm), or name of paper size \code{A[0-6][L,P], WS[L,P]}
+#' @param height  paper height (cm)
+#' @param box     ???
+#' @param bg      background picture. if provided, the size of this picture (in pixels) is used instead of width,height
+#'          only usefull for jpeg output
+#' @inheritParams cfnDevName
+#' @return list containing all arguments and \code{outfile}. This list can be used as the first argument of \code{\link{cfnDevClose}}.
+#' @seealso \code{\link{cfnDevClose}}
+#' @noRd
+cfnDevOpen <- function(outname=NA,type,width=10,height=10,box=TRUE,bg=NA) {
+
+   # paper size
+   ret = cfnDevSize(width,height)
+   width = ret$width
+   height= ret$height
+
+   # init
+   Fcm2in=1/2.54
+   mai        = c(0.1,0.1,0.1,0.1)   # margin sizes in inches, use with plot function
+   par(mai=mai)
+
+   fonts     = c("Times","Helvetica","Courier")
+   pointsize = 12
+
+   width  = width  * Fcm2in
+   height = height * Fcm2in
+   units  = "in"
+
+   # determine type of bg
+   if(is.na(bg)[1]) {
+      bg.image=NA
+      bg.color=NA
+   } else {
+      if("imagematrix" %in% class(bg)) {
+         bg.image=bg
+         bg.color=NA
+      } else {
+         bg.image=NA
+         bg.color=bg
+      }
+   }
+
+   # default background color
+   if(is.na(bg.color)){bg.color="transparent"}
+
+   # define units from bg
+   if(is.na(bg.image)[1]) {
+      bg.width  = width
+      bg.height = height
+      bg.units  = units
+      bg.res    = 300
+   } else {
+      ps=dim(bg)
+      bg.width  = ps[2]
+      bg.height = ps[1]
+      bg.units  = "px"
+      bg.res    = bg.width %/% width
+      height    = width*bg.height/bg.width  # necessary for pdf
+      pointsize = 1
+   }
+
+   pname=cfnDevName(outname=outname,type=type,outdir=NULL)
+   if(type == "pdf") {
+      pdf(pname,paper="special",width=width,height=height,pointsize=pointsize,fonts=fonts,bg=bg.color)
+   } else if(type == "eps") {
+      postscript(pname,paper="special",
+                       width=width,height=height,pointsize=pointsize,horizontal=FALSE,
+                       fonts=fonts,bg=bg.color)
+   } else if(type %in% c("jpeg","jpg")) {
+      jpeg(pname,width=bg.width,height=bg.height,units=bg.units,
+                                  pointsize=pointsize,bg=bg.color,res=bg.res)#1200)
+   } else if(type == "png") {
+      # for png: resolution of 300 is too much.  (on XP 32 bits, R 2.10.1)
+      # with F=1 100 dpi works
+      png(pname,width=bg.width,height=bg.height,units=bg.units,
+                                  pointsize=1,bg=bg.color,res=bg.res)
+   } else if(type == "tiff") {
+      tiff(pname,width=bg.width,height=bg.height,units=bg.units,compression="none",
+                                  pointsize=12,bg=bg.color,res=bg.res)
+   } else {
+      # windows settings
+      # close device
+      if(names(dev.cur()) == "windows"){dev.off()}
+
+      f=2.5  # to view the plot bigger
+      sr = 90  # screen resolution (points per inch)
+      sr = 100
+      # new settings
+      windows.options(width=f*width,height=f*height,pointsize=f*pointsize)
+      windows.options(xpinch=f*sr,ypinch=f*sr)
+      win.graph(f*width, f*height, f*pointsize)
+      # set cex to make the layout comparible to other devices
+      par(cex = par()$din[2]/height)
+   }
+
+   # out
+   out = list(outname=outname,type=type,width=width,height=height,box=box,bg=bg,outfile=pname)
+
+   # return
+#   return(outlist)
+   return(out)
+}
+
+
+#' Close graphics device
+#'
+#' Close graphics device
+#' @param copyto  directory name to copy plot-file to
+#' @inheritParams cfnDevName
+#' @details Argument \code{outname} may contain the output of \code{cfnDevOpen} in which case \code{outname} and \code{type} do not have to be defined again here.
+#' @seealso \code{\link{cfnDevOpen}}
+#' @noRd
+cfnDevClose <- function(outname,type,copyto=NULL) {
+
+   # test outname
+   if (is.list(outname)) {
+      outnamelist = outname
+      outname = outnamelist$outname
+      if (missing(type)){type = outnamelist$type}
+   }
+
+   # filename
+   infile  = cfnDevName(outname=outname,type=type,outdir=NULL)
+   if(! is.null(copyto)) {
+      outfile = cfnDevName(outname=outname,type=type,outdir=copyto)
+   } else {
+      outfile = NA
+   }
+
+
+   if(! is.na(infile)){dev.off()}
+
+   # copy file (if wanted)
+   if(! is.na(outfile))
+     {# copy
+      print(paste("copy file from",infile,"to",outfile,"..."))
+      file.copy(infile,outfile,overwrite=TRUE)
+     }
+
+   # return
+   return(invisible(NULL))
+  }
+
+
 

@@ -247,7 +247,7 @@ img_get_clip_area <- function(img) {
 img_clip <- function(img,clip=NULL,tilt=NULL) {
    
    if (is.null(clip)) {return(img)}
-
+   
    dm     = dim(img)[2:1]
    img    = img_as_3d(img)
    clip$x = range(pmax(1,pmin(round(clip$x),dm[1])))
@@ -258,17 +258,25 @@ img_clip <- function(img,clip=NULL,tilt=NULL) {
       out = img[jj,ii,]
    } else {
       # use tilt
+      # rotate around min(ii),min(jj)
+      x0 = min(ii)
+      y0 = min(jj)
       # define grid points, rotate them, and read them from img
-      ix = rep(ii-(ii[1]-1),each=length(jj))
-      iy = rep(jj-(jj[1]-1),times=length(ii))
-      rot = solve(tilt$trf) %*% rbind(ix,iy)  # x=rot[,1], y=rot[,2]
+      ix = rep(ii-x0,each=length(jj))
+      iy = rep(jj-y0,times=length(ii))
+      rot = solve(tilt$trf) %*% rbind(ix,iy)  # x=rot[1,], y=rot[2,]
+      rx = rot[1,,drop=TRUE]
+      ry = rot[2,,drop=TRUE]
       # translate
-      rot[1,] = rot[1,] + clip$x[1]
-      rot[2,] = rot[2,] + clip$y[1]
+      rx = rx + x0
+      ry = ry + y0
+      ix = ix + 1
+      iy = iy + 1
       # copy
       out = array(0,dim=c(length(jj),length(ii),3))
       for (i in 1:3) {
-         out[cbind(iy,ix,i)] = img[cbind(rot[2,],rot[1,],i)]
+         out[cbind(iy,ix,i)] = img[cbind(ry,rx,i)]
+#         out[,,i] = img[cbind(ry,rx,i)]
       }
    }
 
@@ -467,8 +475,12 @@ img_plot <- function(img)  {
 
 
 #' The workhorse function for the image OCR list
-img_ocr_list <- function(files,outfile=NULL,clip=NULL,
-                         step=1,smooth=0,minconfidence=-1,
+#'
+#' @param frames integers; Frame numbers to be processed, ignored if NULL. 
+#'                         The frame numbers are stored as `nr` in the result table.
+#'                         This selection is overrides the other selection options.
+img_ocr_list <- function(files,outfile=NULL,clip=NULL,tilt=tilt,
+                         step=1,smooth=0,minconfidence=-1,frames=NULL,
                          framerate=NULL,cycle=NULL,draw=FALSE,col="red") {
 
    # init
@@ -496,6 +508,7 @@ img_ocr_list <- function(files,outfile=NULL,clip=NULL,
    }
    # add missing data
    if (! "nr" %in% names(out)) {
+      # frame numbers
       out$nr   = extract_frame_numbers(out$file)
    }
    for (nme in c("time","word","confidence","weight","cycle")) {
@@ -517,15 +530,21 @@ img_ocr_list <- function(files,outfile=NULL,clip=NULL,
       }
    }
 
-   # find missing data
-   #    too low confidence
-   sel  = (out$confidence < minconfidence)
-   sel[is.na(sel)] = FALSE
-   #    no result yet
-   sel  = sel | is.na(out$word)
+   # find to be processed data
+   if (is.null(frames)) {
+      #    too low confidence
+      sel  = (out$confidence < minconfidence)
+      sel[is.na(sel)] = FALSE
+      #    no result yet
+      sel  = sel | is.na(out$word)
+   } else {
+      #    select given frames
+      sel = (out$nr %in% frames)
+   }
    #    subset to be processed
    idxs = seq_along(out$file)
    idxs = idxs[sel]
+
 
    # OCR
    nid  = 0  # number of identified images
@@ -537,7 +556,7 @@ img_ocr_list <- function(files,outfile=NULL,clip=NULL,
       }
       idx  = idxs[i]
       file = out$file[idx]
-      res = img_ocr(file,clip=clip,step=step,smooth=smooth,draw=draw,col=col)
+      res = img_ocr(file,clip=clip,tilt=tilt,step=step,smooth=smooth,draw=draw,col=col)
       words = res$word
       if (length(words) == 1) {
          # OK
@@ -566,7 +585,13 @@ img_ocr_list <- function(files,outfile=NULL,clip=NULL,
    # gewicht bepalen
    words = out$word
    words = gsub("[.]","",words)  # punt verwijderen
-   out$weight = as.numeric(words)/fact
+   # voorkomen van: NAs introduced by coercion
+   sel   = grep("^(-|)[0-9]*$",c("","1","a","-","-3"))
+   wghts = rep(as.numeric(NA),length(words))
+   if (length(sel) > 0) {
+      wghts[sel] = as.numeric(words[sel])/fact
+   }
+   out$weight = wghts
 
    # csv-file
    save_ocr_results(lst=out,outfile)
@@ -576,7 +601,7 @@ img_ocr_list <- function(files,outfile=NULL,clip=NULL,
 }
 
 #' The workhorse function for the image OCR
-img_ocr <- function(img,clip=NULL,step=1,smooth=0,draw=FALSE,col="red") {
+img_ocr <- function(img,clip=NULL,tilt=tilt,step=1,smooth=0,draw=FALSE,col="red") {
 
    # inint
    charset = "-.0123456789"
@@ -590,7 +615,7 @@ img_ocr <- function(img,clip=NULL,step=1,smooth=0,draw=FALSE,col="red") {
    }
 
    # clip and reduce
-   img = img_clip(img,clip)
+   img = img_clip(img,clip,tilt)
    img = img_reduce(img,step=step,smooth=smooth)
 
    # convert image to raw-PNG
