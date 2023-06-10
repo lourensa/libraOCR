@@ -1814,8 +1814,8 @@ cfnLoad <- function(name,path=NA) {
    # load
    rname = name
    if(! exists(name)) {
-      filename = cfnFileName(name,path,check=TRUE)
-      if(is.na(filename)) {
+      filename = cfn_check_file(name,path=path,check=TRUE)
+      if(is.null(filename)) {
          message("cfnLoad: Input file for dataset ",name," not found!")
          return(NULL)
       }
@@ -1859,8 +1859,8 @@ cfnLoadCheck <- function(name,path=NA) {
       ret = ret + 2L
    }
 
-   filename = cfnFileName(name,path,check=TRUE)
-   if(! is.na(filename)) {
+   filename = cfn_check_file(name,path,check=TRUE)
+   if(! is.null(filename)) {
       # data file exists
       ret = ret + 1L
    }
@@ -1892,11 +1892,11 @@ cfnSave <- function(name,path=NA) {
    pf = parent.frame()
 
    if(exists(name,where=pf)) {
-      filename = cfnFileName(name,path)
+      filename = cfn_check_file(name,path)
       cat(paste0("Save structure ",name," to file ",filename,"...\n"))
       save(list=name,file=filename,envir=pf)
    } else if(exists(name,inherits=TRUE)) {
-      filename = cfnFileName(name,path)
+      filename = cfn_check_file(name,path)
       cat(paste0("Save structure ",name," to file ",filename,"...\n"))
       save(list=name,file=filename)
    } else {
@@ -1912,7 +1912,6 @@ cfnSave <- function(name,path=NA) {
 #' @param   obj      object to be stored
 #' @param   name     name of the structure
 #' @param   path     directory to save data to
-#'                   path defaults to LUE$cfn$dataPath or c("data",".") (see \code{\link{cfnFileName}})
 #' @seealso \code{\link{cfnFileName}}, \code{\link{cfnLoad}}, \code{\link{cfnSave}}, \code{\link{cfnAutoSave}}, \code{\link{cfnAutoLoad}}
 #' @noRd
 cfnSaveAs <- function(obj,name,path=NA) {
@@ -1923,4 +1922,135 @@ cfnSaveAs <- function(obj,name,path=NA) {
 
    return(invisible())
 }
+
+# ----- cfnTrim -----
+
+#' Trim string
+#'
+#' Remove spaces in a string at both sides.
+#' @param txt input string
+#' @return Trimmed string.
+#' @seealso \code{\link{cfnTrimL}} and \code{\link{cfnTrimR}}
+#' @noRd
+cfnTrim <- function(txt) {
+   txt = gsub("^ *","",txt) # left
+   txt = gsub(" *$","",txt) # right
+   return(txt)
+}
+
+
+# ----- cfnArray -----
+
+#' Convert a string into an array
+#'
+#' Convert a string into an array with the fields separated by \code{sep}. The type of output is given or automaticly detected. The output is a one dimensional array.
+#' @param  x      object of type character string
+#' @param  what   Output type, if NA or NULL the type is automaticly detected, otherwise the type of the value is used.
+#' @param  sep    the field separator to be used
+#' @details If \code{nchar(x)} is 0 then an empty string "" is returned.
+#' @noRd
+cfnArray <- function(x,what=NA,sep=",") {
+   #
+
+   # init
+   if(is.null(what)){what = NA}
+
+   # output type
+   if(is.na(what)){otype = "auto"}
+   else           {otype = class(what)}
+
+   # voorbewerken x
+   if(is.list(x)){x = unlist(x)}
+   xtype = class(x)
+
+   # x omzetten naar losse velden
+   if(xtype == "character") {
+      x = scan(text=x,what="",sep=sep,quiet=TRUE)
+   }
+
+   # x omzetten naar juiste type
+   if(otype == "auto") {
+      # alle types testen, het type dat als eerste werkt wordt gekozen
+      if(xtype == "character") {
+         if (length(x) == 0) {
+            # make the result an empty character
+            out = ""
+         } else {
+            for(ttype in list(TRUE,1L,9.9,"A")) {
+               if (is.character(ttype)) {
+                  out = x
+                  break
+               } else {
+                  out = try(scan(text=x,what=ttype,quiet=TRUE),silent=TRUE)
+                  if(class(out) != "try-error") {break}
+               }
+            }
+         }
+      } else {
+         out = x
+      }
+   } else if (otype == "character") {
+      out = as.character(x)
+   } else if (otype == "numeric") {
+      out = as.numeric(x)
+   } else if (otype == "integer") {
+      out = as.integer(x)
+   } else if (otype == "logical") {
+      out = as.logical(x)
+   } else {
+      cat("ERROR cfnArray: output type",otype,"unknown.")
+      out = NULL
+   }
+
+   # return
+   return(out)
+}
+
+#' Convert string values in a list into arrays
+#'
+#' Convert string values in a list into arrays
+#' @param data   list structure from which all character strings are split into arrays using \code{sep} as field separator
+#' @param sep    field separator
+#' @seealso \code{\link{cfnArray}}
+#' @noRd
+cfnListArray <- function(x,sep=",") {
+
+   # local function for recursive call
+   locPerform <- function(x,sep) {
+      if(is.list(x)) {
+         for(i in seq_along(x)) {
+            x[[i]] = Recall(x=x[[i]],sep=sep)
+         }
+      } else {
+         x = cfnArray(x=x,what=NA,sep=sep)
+      }
+      return(x)
+   }
+
+   # perform
+   x = locPerform(x=x,sep=sep)
+
+   # return
+   return(x)
+}
+
+# ----- cfn extra -----
+
+#' Create a filename and optionally check existence
+#' @returns If check=FALSE: returns file name.
+#' If check=TRUE: file name if file exists, NULL otherwise.
+#' @noRd
+cfn_check_file <- function(name,path,check=FALSE) {
+   # init
+   sep = "/"
+   ext = ".RData"
+   filename = paste0(path,sep,name,ext)
+   if (check) {
+      if (! file.exists(filename)) {
+         filename = NULL
+      }
+   }
+   return(filename)
+} 
+
 

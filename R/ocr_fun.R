@@ -57,9 +57,9 @@ read_clip_area <- function(INI,exp) {
    expsec = get_exp_section(INI,exp)
    outdir = expsec$outdir
 
-   clipfile = cfnFileName(clipname,paths=outdir,check=TRUE)
-   if (! is.na(clipfile)) {
-      clip = cfnLoadFile(clipfile,path=NA,exts=NA)
+   clipfile = cfn_check_file(clipname,path=outdir,check=TRUE)
+   if (! is.null(clipfile)) {
+      clip = cfnLoad(clipname,path=outdir)
    } else {
       clip = NULL
    }
@@ -94,9 +94,9 @@ read_tilt_line <- function(INI,exp) {
    expsec = get_exp_section(INI,exp)
    outdir = expsec$outdir
 
-   tiltfile = cfnFileName(tiltname,paths=outdir,check=TRUE)
-   if (! is.na(tiltfile)) {
-      tilt = cfnLoadFile(tiltfile,path=NA,exts=NA)
+   tiltfile = cfn_check_file(tiltname,path=outdir,check=TRUE)
+   if (! is.null(tiltfile)) {
+      tilt = cfnLoad(tiltname,path=outdir)
    } else {
       tilt = NULL
    }
@@ -207,7 +207,7 @@ load_ocr_results <- function(csvfile) {
    # try to read the csv-file
    if (file.exists(csvfile)) {
       # former result found
-      cat("Load data from csv-file", filename,"\n")
+      cat("Load data from csv-file", csvfile,"\n")
       lst = read.csv(csvfile,na.strings = "", stringsAsFactors = FALSE)
       lst = as.list(lst)
    } else {
@@ -236,7 +236,9 @@ img_get_clip_area <- function(img) {
    with(clip1,abline(h=y,v=x,col=col))
    clip2 = locator(1,type="p",col=col)
    with(clip2,abline(h=y,v=x,col=col))
-   clip = cfnCat(clip1,clip2)
+   clip = clip1
+   clip$x[2] = clip2$x[1]
+   clip$y[2] = clip2$y[1]
 
    # return
    return(clip)
@@ -446,10 +448,10 @@ img_as_3d <- function(img) {
 img_as_raw_png <- function(img) {
    # convert image to raw-PNG
    if (is.numeric(img) & length(dim(img)) == 3) {
-      img  = writePNG(img,target=raw())
+      img  = png::writePNG(img,target=raw())
    } else if (is.raster(img)) {
       img = img_as_3d(img)
-      img  = writePNG(img,target=raw())
+      img  = png::writePNG(img,target=raw())
    } else if (! is.raw(img)) {
       img = NULL
    }
@@ -580,11 +582,11 @@ img_ocr <- function(img,clip=NULL,step=1,smooth=0,draw=FALSE,col="red") {
    charset = "-.0123456789"
 
    # ocr sttings
-   loc_engine <- tesseract(options = list(tessedit_char_whitelist = charset))
+   loc_engine <- tesseract::tesseract(options = list(tessedit_char_whitelist = charset))
 
    # read file if img is of class character
    if (is.character(img)) {
-      img = readJPEG(img)         # 3D RGB
+      img = jpeg::readJPEG(img)         # 3D RGB
    }
 
    # clip and reduce
