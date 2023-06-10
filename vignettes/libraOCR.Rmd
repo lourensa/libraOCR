@@ -1,0 +1,108 @@
+---
+title: "libraOCR"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{libraOCR}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## usage
+
+An example of the usage of the functions.
+
+```
+# step 1
+library(libraOCR)
+INI = step1_initialise("ocr.ini")
+
+
+# step 2 enter which experiment(s) to process or NULL to process all
+exps = c("exp1")
+exps = step2_list_of_experiments(INI, exps = exps)
+
+
+#  step 3  split the video into jpeg-files
+files = step3_split_videos(INI,exps)
+
+
+# step 4  define clip area
+step4a_define_clip_area(INI,exps,replace=FALSE)
+step4b_define_tilt_line(INI,exps,replace=FALSE)
+
+
+# step 5a  test OCR
+#step5_ocr_images(INI,exps,set="set1",draw=TRUE,frames=1)
+
+# step 5b  OCR
+step5_ocr_images(INI,exps,set="set1",draw=FALSE)
+
+# step 6 plot results
+step6_plot_result(INI, exps = exps, plts = "plt1")
+
+```
+
+## ini-file
+
+Example of an ini-file.
+
+```
+
+[experiments]
+
+[experiments/exp1]
+description = experiment 1, datum, woonplaats
+id          = ST_1cm_1000sccm_1
+directory   = ./20230522 videos
+video       = ${directory}/VID_20230522_131619902.mp4
+outdir      = ${directory}/${id}/jpegfiles
+csvfile     = ${id}.csv
+
+
+
+[ocr_settings]
+[ocr_settings/set1]
+step   = 3
+smooth = 0
+cycle  = 1
+minconfidence = 30
+
+
+[ocr_settings/set2]
+step   = 3
+smooth = 1
+cycle  = 2
+minconfidence = 30
+
+
+
+[plots]
+# width   paper widht in cm
+# height  paper height in cm
+# col     color of dots
+# pch     type marker (1=rondje, 16 dicht rondje)
+# type    plot type, jpg or pdf
+# xlab    label at the x-axis
+# ylab    label at the y-axis
+[plots/plt1]
+width  = 15
+height = 10
+col    = red
+pch    = 16
+type   = pdf
+xlab   = time [s]
+ylab   = weight [g]
+minconfidence = 90
+
+```
+
+```{r setup}
+library(libraOCR)
+```
