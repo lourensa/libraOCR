@@ -18,6 +18,9 @@ Take your cellphone, record a movie of the display of the balance during your ex
 
 ## Installation
 
-devtools::install_github("lourensa/libraOCR",build_manual=TRUE,build_vignettes=TRUE)
+Installation for the libraOCR package is easy, run from R:
+
+`devtools::install_github("lourensa/libraOCR",build_manual=TRUE,build_vignettes=TRUE)`
 
 
+Further required packages are: `av`, `tesseract`
