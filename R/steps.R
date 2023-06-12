@@ -246,9 +246,12 @@ step6_plot_result <- function(INI,exps=NULL,plts=NULL) {
    # local functions
    loc_plt_set <- function(width=15,height=10,col="red",
                        type="pdf",xlab="time [s]",ylab="weight [g]",
-                       minconfidence=90,...) {
+                       minconfidence=90,
+                       annfile=NULL,anncol="blue",annangle=45,
+                       ...) {
       # init
-      nmes = c("width","height","col","type","xlab","ylab","minconfidence")
+      nmes = c("width","height","col","type","xlab","ylab","minconfidence",
+               "annfile","anncol","annangle")
       # defaults
       out = list(...)
       for (nme in nmes) {
@@ -258,7 +261,8 @@ step6_plot_result <- function(INI,exps=NULL,plts=NULL) {
    }
    loc_plot <- function(INI,exp,plt) {
       # init
-      nopltcols = c("width","height","type","minconfidence") # data from pltsec not for plot command
+      nopltcols = c("width","height","type","minconfidence", # data from pltsec not for plot command
+                    "annfile","anncol","annangle")
       outnme = paste0(exp,"_",plt)
 
       # get settings
@@ -267,6 +271,10 @@ step6_plot_result <- function(INI,exps=NULL,plts=NULL) {
       pltsec  =  do.call("loc_plt_set",args=pltsec)
 
       minconfidence = pltsec$minconfidence
+      annfile       = pltsec$annfile
+      anncol        = pltsec$anncol
+      annangle      = pltsec$annangle
+      annadjust     = c(0,0.5)
       csvfile = expsec$csvfile
 
       # title
@@ -285,7 +293,7 @@ step6_plot_result <- function(INI,exps=NULL,plts=NULL) {
       pst = with(pltsec,cfnDevOpen(type,out=outnme,width=width,height=height))
       on.exit(cfnDevClose(pst))
       
-      # plot
+      # plot graph
       args = pltsec
       for (nme in nopltcols) {
          args[[nme]] = NULL
@@ -294,6 +302,18 @@ step6_plot_result <- function(INI,exps=NULL,plts=NULL) {
       args$y = dat$weight
       args$main = main
       do.call("plot",args=args)
+
+      # add annotations
+      #  record: exp,time,weight,text
+      if (! is.null(annfile)) {
+         # select
+         ann = read.csv(annfile,na.strings = "", stringsAsFactors = FALSE)
+         ann = cfnSelList(ann,ann$exp == exp)
+         if (length(ann$exp) > 0) {
+            with(ann,text(x=time,y=weight,label=text,srt=annangle,col=anncol,
+                          adj=annadjust))
+         }
+      }
 
       return(invisible(NULL))
    }

@@ -586,7 +586,7 @@ img_ocr_list <- function(files,outfile=NULL,clip=NULL,tilt=tilt,
    words = out$word
    words = gsub("[.]","",words)  # punt verwijderen
    # voorkomen van: NAs introduced by coercion
-   sel   = grep("^(-|)[0-9]*$",c("","1","a","-","-3"))
+   sel   = grep("^(-|)[0-9]+$",words)
    wghts = rep(as.numeric(NA),length(words))
    if (length(sel) > 0) {
       wghts[sel] = as.numeric(words[sel])/fact
