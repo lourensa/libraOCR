@@ -16,5 +16,8 @@ can not be made! Nightmare!
 
 Take your cellphone, record a movie of the display of the balance during your experiment, load the movie into your computer, convert the movie into a table with `time` and `weight` using OCR. Everyone happy!
 
+## Installation
+
+devtools::install_github("lourensa/libraOCR",build_manual=TRUE,build_vignettes=TRUE)
 
 
